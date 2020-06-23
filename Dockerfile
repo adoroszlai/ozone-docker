@@ -12,16 +12,40 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+FROM centos:7.6.1810
 
-FROM apache/hadoop-runner
-ARG OZONE_URL=https://www.apache.org/dyn/mirrors/mirrors.cgi?action=download&filename=hadoop/ozone/ozone-0.3.0-alpha/hadoop-ozone-0.3.0-alpha.tar.gz
-WORKDIR /opt
-RUN sudo rm -rf /opt/hadoop && wget $OZONE_URL -O ozone.tar.gz && tar zxf ozone.tar.gz && rm ozone.tar.gz && mv ozone* hadoop
-WORKDIR /opt/hadoop
-ADD log4j.properties /opt/hadoop/etc/hadoop/log4j.properties
-ADD ozone-site.xml /opt/hadoop/etc/hadoop/ozone-site.xml
-RUN sudo chown -R hadoop:users /opt/hadoop/etc/hadoop/*
-ADD start-ozone-all.sh /usr/local/bin/start-ozone-all.sh
-ADD docker-compose.yaml /opt/hadoop/
-ADD docker-config /opt/hadoop/
-CMD ["/usr/local/bin/start-ozone-all.sh"]
+RUN yum -y install \
+        bzip2 bzip2-devel \
+        gcc gcc-c++ gcc48-c++ \
+        git \
+        lz4-devel \
+        make \
+        snappy snappy-devel \
+        which \
+        zlib zlib-devel \
+      && yum clean all \
+      && rm -rf /var/cache/yum
+
+RUN git clone https://github.com/gflags/gflags.git \
+      && cd gflags \
+      && git checkout v2.0 \
+      && ./configure && make && make install \
+      && cd .. \
+      && rm -fr gflags
+
+RUN curl -LSs -o zstd-1.1.3.tar.gz https://github.com/facebook/zstd/archive/v1.1.3.tar.gz \
+      && tar zxvf zstd-1.1.3.tar.gz \
+      && cd zstd-1.1.3 \
+      && make && make install \
+      && cd .. \
+      && rm -fr zstd-1.1.3 zstd-1.1.3.tar.gz
+
+RUN curl -LSs -o rocksdb-6.8.1.tar.gz https://github.com/facebook/rocksdb/archive/v6.8.1.tar.gz \
+      && tar xzvf rocksdb-6.8.1.tar.gz \
+      && cd rocksdb-6.8.1 \
+      && make ldb \
+      && mv ldb /usr/local/bin/ \
+      && cd .. \
+      && rm -fr rocksdb-6.8.1 rocksdb-6.8.1.tar.gz
+
+ENV LD_LIBRARY_PATH /usr/local/lib
